@@ -401,7 +401,7 @@ static int l_readString(lua_State *L)
 	int maxsize = luaL_checkinteger(L, 3);
 	const char* strptr = ptr + rpos;
 	int strlength = strlen(strptr);
-	if (AssetOutOfRange(L, rpos, strlen, maxsize) == true)
+	if (AssetOutOfRange(L, rpos, strlen(ptr), maxsize) == true)
 	{
 		lua_pushinteger(L, 0);
 		return 2;
@@ -417,7 +417,7 @@ static int l_readBlob(lua_State *L)
 	byte* ptr = (byte*)luaL_checkinteger(L, 1);
 	int rpos = luaL_checkinteger(L, 2);
 	int maxsize = luaL_checkinteger(L, 3);
-	uint8_t bloblen = (uint8_t *)ptr;
+	uint8_t bloblen = *(uint8_t *)ptr;
 	const char* strptr = ptr + rpos + 4;
 	if (AssetOutOfRange(L, rpos, bloblen, maxsize) == true)
 	{
