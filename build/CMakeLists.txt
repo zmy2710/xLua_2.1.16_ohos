@@ -4,7 +4,7 @@
 # http://opensource.org/licenses/MIT
 # Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
 
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 2.8...3.5)
 
 if ( WIN32 AND NOT CYGWIN AND NOT ( CMAKE_SYSTEM_NAME STREQUAL "WindowsStore" ) AND NOT ANDROID)
 	set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /MT" CACHE STRING "")
@@ -18,12 +18,20 @@ project(XLua)
 if ( IOS )
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fembed-bitcode")
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fembed-bitcode")
+		set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "Minimum OS X deployment version")
 endif ()
 
 option ( UINT_ESPECIALLY "using custom ulong" OFF )
 option ( USING_LUAJIT "using luajit" OFF )
 option ( GC64 "using gc64" OFF )
-option ( LUAC_COMPATIBLE_FORMAT "compatible format" OFF )
+if(IOS)
+    option(LUAC_COMPATIBLE_FORMAT "compatible format" OFF)
+else()
+    option(LUAC_COMPATIBLE_FORMAT "compatible format" ON)
+endif()
+
+add_definitions(-DLUA_VERSION_NUM=503)
+
 
 find_path(XLUA_PROJECT_DIR NAMES SConstruct
     PATHS 
@@ -91,6 +99,51 @@ else ()
 	#   ${LUA_SRC_PATH}/lutf8lib.c ${LUA_SRC_PATH}/loadlib.c )
 endif ()
 
+
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+#begin lua-memstream
+set (MEMSTREAM_SRC luamemstream/memstream.c)
+set_property(
+	SOURCE ${MEMSTREAM_SRC}
+	APPEND
+	PROPERTY COMPILE_DEFINITIONS
+	LUA_LIB
+)
+set (THIRDPART_SRC ${THIRDPART_SRC} ${MEMSTREAM_SRC})
+#end lua-memstream
+ 
+#begin lua-protobuf
+set (PROTOBUF_SRC lua-protobuf/pb.c)
+set_property(
+     SOURCE ${PROTOBUF_SRC}
+     APPEND
+     PROPERTY COMPILE_DEFINITIONS
+     LUA_LIB
+)
+list(APPEND THIRDPART_INC  lua-rapidjson/include)
+set (THIRDPART_SRC ${THIRDPART_SRC} ${PROTOBUF_SRC})
+#end lua-protobuf
+
+#begin lua-rapidjson
+set (RAPIDJSON_SRC
+lua-rapidjson/source/rapidjson.cpp
+lua-rapidjson/source/Document.cpp
+lua-rapidjson/source/Schema.cpp
+lua-rapidjson/source/values.cpp
+)
+set_property(
+	SOURCE ${RAPIDJSON_SRC}
+	APPEND
+	PROPERTY COMPILE_DEFINITIONS
+	LUA_LIB
+)
+list(APPEND THIRDPART_INC  lua-rapidjson/include)
+set (THIRDPART_SRC ${THIRDPART_SRC} ${RAPIDJSON_SRC})
+include_directories(lua-rapidjson/include)
+#end lua-rapidjson
+ 
 set ( LUA_SOCKET
     luasocket/auxiliar.c
     luasocket/buffer.c
@@ -145,7 +198,6 @@ source_group_by_dir(${CMAKE_CURRENT_SOURCE_DIR} XLUA_CORE)
 
 if (APPLE)
     if (IOS)
-        ADD_DEFINITIONS(-DLUA_USE_IOS) # Despite claiming to be ISO C, iOS does not implement 'system'.(iOS11)
         set(CMAKE_OSX_ARCHITECTURES "$(ARCHS_STANDARD)")
         add_library(xlua STATIC
            ${LUA_CORE}
